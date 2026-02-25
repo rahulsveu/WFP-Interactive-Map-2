@@ -1,27 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>WFP Interactive Map</title>
     <meta charset="utf-8" />
+    <title>WFP Interactive Map</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f1f5f9; }
-        #header { background: #0f172a; color: white; padding: 12px; text-align: center; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f8fafc; }
+        #header { background: #1e293b; color: white; padding: 15px; text-align: center; font-size: 1.2rem; }
         #controls { background: white; padding: 10px; display: flex; gap: 10px; justify-content: center; border-bottom: 1px solid #cbd5e1; }
         #container { display: flex; flex: 1; overflow: hidden; }
         #map { flex: 2; background: #e2e8f0; } 
         #info-panel { flex: 1; padding: 25px; border-left: 1px solid #cbd5e1; overflow-y: auto; display: none; background: white; }
-        .project-img { width: 100%; border-radius: 8px; margin-top: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); display: block; background: #f8fafc; }
-        .caption { font-size: 0.85rem; color: #475569; font-style: italic; margin-top: 6px; margin-bottom: 25px; display: block; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
-        select, button { padding: 8px 12px; border-radius: 6px; border: 1px solid #94a3b8; }
-        button { background: #2563eb; color: white; border: none; cursor: pointer; font-weight: 600; }
+        .project-img { width: 100%; border-radius: 8px; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: block; }
+        .caption { font-size: 0.85rem; color: #64748b; font-style: italic; margin-top: 8px; margin-bottom: 25px; display: block; }
+        select, button { padding: 8px 12px; border-radius: 6px; border: 1px solid #94a3b8; cursor: pointer; }
+        button { background: #2563eb; color: white; border: none; font-weight: 600; }
         hr { border: 0; border-top: 2px solid #f1f5f9; margin: 20px 0; }
     </style>
 </head>
 <body>
 
-<div id="header"><h3>WFP Interactive Map</h3></div>
+<div id="header">WFP Interactive Map</div>
 <div id="controls">
     <select id="stateFilter"><option value="">All States</option></select>
     <select id="themeFilter"><option value="">All Thematic Areas</option></select>
@@ -38,25 +38,21 @@
 <script>
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSF12V5ASrhO7_ASqHC8tsb9HzY_Jxd-8yvJFh274fctI-x-3qnIA8BQaJhMlQYuFQxqIhcxs-2m7zH/pub?output=csv';
 
-    // 1. Initialize Map with an India-Compliant Tile Layer
-    // This server uses the Indian-view boundaries for Arunachal and Ladakh
+    // Initialize Map with a reliable Hybrid Satellite layer (Detailed & India-Friendly)
     const map = L.map('map').setView([22.97, 78.65], 5);
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors | Official Indian Boundaries',
-        maxZoom: 18
+    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '© Google Maps | Official Indian Boundaries'
     }).addTo(map);
 
     let allData = [];
     let markers = L.layerGroup().addTo(map);
 
-    // 2. Fixed Google Drive Image Handler
-    // Specifically targets the thumbnail API which is the most stable for cross-site embedding
-    function getSafeDriveUrl(url) {
-        if (!url || typeof url !== 'string' || url.length < 15) return null;
-        let id = "";
-        const parts = url.match(/[-\w]{25,}/); // Extracts the long alphanumeric ID from any Drive link
-        if (parts) id = parts[0];
+    // Reliable Google Drive ID Extractor
+    function getDriveThumbnail(url) {
+        if (!url || typeof url !== 'string' || url.length < 20) return null;
+        const match = url.match(/[-\w]{25,}/); // Standard Drive ID regex
+        const id = match ? match[0] : null;
         return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : null;
     }
 
@@ -66,9 +62,11 @@
         skipEmptyLines: true,
         complete: function(results) {
             allData = results.data.filter(r => r.Latitude && r.Longitude);
+            console.log("Data Loaded successfully:", allData.length, "rows");
             setupFilters(allData);
             plotMarkers(allData);
-        }
+        },
+        error: function(err) { console.error("Could not fetch CSV:", err); }
     });
 
     function plotMarkers(data) {
@@ -85,20 +83,20 @@
                 const panel = document.getElementById('info-panel');
                 panel.style.display = 'block';
                 
-                const img1 = getSafeDriveUrl(row['Snippet 1']);
-                const img2 = getSafeDriveUrl(row['Snippet 2']);
+                const img1 = getDriveThumbnail(row['Snippet 1']);
+                const img2 = getDriveThumbnail(row['Snippet 2']);
                 
                 let snippetsHtml = "";
                 if (img1) snippetsHtml += `<img class="project-img" src="${img1}"><span class="caption">${row['Caption 1'] || ''}</span>`;
                 if (img2) snippetsHtml += `<img class="project-img" src="${img2}"><span class="caption">${row['Caption 2'] || ''}</span>`;
 
                 panel.innerHTML = `
-                    <h2 style="color:#1e293b;">${row.Title || 'Project Details'}</h2>
+                    <h2>${row.Title || 'Research Project'}</h2>
                     <p><strong>Researcher:</strong> ${row.Name || row.Researcher || 'N/A'}</p>
                     <p><strong>State:</strong> ${row.State || 'N/A'}</p>
                     <p><strong>Theme:</strong> ${row['Thematic Area'] || row.Theme || 'N/A'}</p>
                     <hr>
-                    <p style="line-height:1.6; color:#334155;">${row['Abstract/Summary'] || row.Abstract || ''}</p>
+                    <p style="line-height:1.6;">${row['Abstract/Summary'] || row.Abstract || ''}</p>
                     ${snippetsHtml}
                 `;
             });
@@ -110,6 +108,11 @@
         const themes = [...new Set(data.map(r => r['Thematic Area'] || r.Theme))].filter(Boolean).sort();
         const sSelect = document.getElementById('stateFilter');
         const tSelect = document.getElementById('themeFilter');
+        
+        // Reset and populate
+        sSelect.innerHTML = '<option value="">All States</option>';
+        tSelect.innerHTML = '<option value="">All Thematic Areas</option>';
+        
         states.forEach(s => sSelect.innerHTML += `<option value="${s}">${s}</option>`);
         themes.forEach(t => tSelect.innerHTML += `<option value="${t}">${t}</option>`);
         sSelect.onchange = applyFilters;
@@ -119,11 +122,7 @@
     function applyFilters() {
         const s = document.getElementById('stateFilter').value;
         const t = document.getElementById('themeFilter').value;
-        const filtered = allData.filter(r => {
-            const matchesState = (s === '' || r.State === s);
-            const matchesTheme = (t === '' || (r['Thematic Area'] || r.Theme) === t);
-            return matchesState && matchesTheme;
-        });
+        const filtered = allData.filter(r => (s === '' || r.State === s) && (t === '' || (r['Thematic Area'] || r.Theme) === t));
         plotMarkers(filtered);
     }
 </script>
