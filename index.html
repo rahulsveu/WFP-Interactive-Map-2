@@ -6,28 +6,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f8fafc; }
-        #header { background: #1e293b; color: white; padding: 15px; text-align: center; font-size: 1.2rem; }
+        /* Updated global font and base styles */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Neue Haas Grotesk Display Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            background: #f8fafc; 
+        }
+
+        /* Header layout to place title and subtitle besides each other */
+        #header { 
+            background: #1e293b; 
+            color: white; 
+            padding: 15px; 
+            text-align: center; 
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap; /* ensures it looks good on mobile */
+        }
+
+        #header .main-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        #header .subtitle {
+            font-size: 0.9rem;
+            font-style: italic;
+            font-weight: bold;
+            opacity: 0.9;
+        }
+
         #controls { background: white; padding: 10px; display: flex; gap: 10px; justify-content: center; border-bottom: 1px solid #cbd5e1; flex-wrap: wrap; }
         #container { display: flex; flex: 1; overflow: hidden; }
         #map { flex: 2; background: #e2e8f0; } 
         #info-panel { flex: 1; padding: 25px; border-left: 1px solid #cbd5e1; overflow-y: auto; display: none; background: white; }
+        
         .project-img { width: 100%; border-radius: 8px; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: block; }
         .caption { font-size: 0.85rem; color: #64748b; font-style: italic; margin-top: 8px; margin-bottom: 25px; display: block; }
-        select, button { padding: 8px 12px; border-radius: 6px; border: 1px solid #94a3b8; cursor: pointer; }
+        
+        select, button { 
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            border: 1px solid #94a3b8; 
+            cursor: pointer; 
+            font-family: inherit; /* ensures dropdowns use the new font */
+        }
+        
         button { background: #2563eb; color: white; border: none; font-weight: 600; }
         hr { border: 0; border-top: 2px solid #f1f5f9; margin: 20px 0; }
+        
+        h2 { font-weight: bold; margin-top: 0; } /* Bold project titles in panel */
     </style>
 </head>
 <body>
 
-<div id="header">Field Project 2026 Map</div>
+<div id="header">
+    <span class="main-title">Field Project 2026 Map</span>
+    <span class="subtitle">Made by Deenanath Sahu and Rahul Patel</span>
+</div>
+
 <div id="controls">
     <select id="stateFilter"><option value="">All States</option></select>
     <select id="themeFilter"><option value="">All Thematic Areas</option></select>
-    <select id="natureFilter"><option value="">All Project Types</option></select>
+    <select id="natureFilter"><option value="">All Project Natures</option></select>
     <button onclick="location.reload()">Reset Map</button>
 </div>
+
 <div id="container">
     <div id="map"></div>
     <div id="info-panel"></div>
@@ -39,7 +89,6 @@
 <script>
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTBmIrU1dFkHkdCohIqhhwHxi1CASej4pDY1ciRHytriDFBgDevrEQOEb28YDd_t8Tg-j6WDSpZKZJa/pub?output=csv';
 
-    // Initialize Map
     const map = L.map('map').setView([22.97, 78.65], 5);
     
     L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
@@ -49,7 +98,6 @@
     let allData = [];
     let markers = L.layerGroup().addTo(map);
 
-    // Reliable Google Drive ID Extractor
     function getDriveThumbnail(url) {
         if (!url || typeof url !== 'string' || url.length < 20) return null;
         const match = url.match(/[-\w]{25,}/);
@@ -63,7 +111,6 @@
         skipEmptyLines: true,
         complete: function(results) {
             allData = results.data.filter(r => r.Latitude && r.Longitude);
-            console.log("Data Loaded successfully:", allData.length, "rows");
             setupFilters(allData);
             plotMarkers(allData);
         },
@@ -91,16 +138,15 @@
                 if (img1) snippetsHtml += `<img class="project-img" src="${img1}"><span class="caption">${row['Caption 1'] || ''}</span>`;
                 if (img2) snippetsHtml += `<img class="project-img" src="${img2}"><span class="caption">${row['Caption 2'] || ''}</span>`;
 
-                // Updated to match the specific column names in your Mastersheet.csv
                 panel.innerHTML = `
                     <h2>${row['Title of the Project'] || row.Title || 'Research Project'}</h2>
                     <p><strong>Student:</strong> ${row.Student || row.Name || 'N/A'}</p>
+                    <p><strong>Nature of Project:</strong> ${row['Nature of Project'] || 'N/A'}</p>
                     <p><strong>District:</strong> ${row.District || 'N/A'}</p>
                     <p><strong>State:</strong> ${row.State || 'N/A'}</p>
-                    <p><strong>Theme:</strong> ${row.Theme || row['Thematic Area'] || 'N/A'}</p>
-                    <p><strong>Nature of Project:</strong> ${row['Nature of Project'] || 'N/A'}</p>
+                    <p><strong>Theme:</strong> ${row.Theme || row['Theme'] || 'N/A'}</p>
                     <hr>
-                    <p style="line-height:1.6;">${row.Abstract || ''}</p>
+                    <p style="line-height:1.6;">${row['Abstract'] || row.Abstract || ''}</p>
                     ${snippetsHtml}
                 `;
             });
@@ -109,31 +155,20 @@
 
     function setupFilters(data) {
         const states = [...new Set(data.map(r => r.State))].filter(Boolean).sort();
-        const themes = [...new Set(data.map(r => r.Theme || r['Thematic Area']))].filter(Boolean).sort();
-        
-        // Logic to extract unique project types from comma-separated values
-        let natureTypesSet = new Set();
-        data.forEach(r => {
-            if (r['Nature of Project']) {
-                // Split by comma and trim whitespace
-                const types = r['Nature of Project'].split(',').map(item => item.trim());
-                types.forEach(type => natureTypesSet.add(type));
-            }
-        });
-        const natureTypes = [...natureTypesSet].filter(Boolean).sort();
+        const themes = [...new Set(data.map(r => r['Theme'] || r.Theme))].filter(Boolean).sort();
+        const natures = [...new Set(data.map(r => r['Nature of Project']))].filter(Boolean).sort();
 
         const sSelect = document.getElementById('stateFilter');
         const tSelect = document.getElementById('themeFilter');
         const nSelect = document.getElementById('natureFilter');
         
-        // Populate dropdowns
         sSelect.innerHTML = '<option value="">All States</option>';
         tSelect.innerHTML = '<option value="">All Thematic Areas</option>';
-        nSelect.innerHTML = '<option value="">All Project Types</option>';
+        nSelect.innerHTML = '<option value="">All Project Natures</option>';
         
         states.forEach(s => sSelect.innerHTML += `<option value="${s}">${s}</option>`);
         themes.forEach(t => tSelect.innerHTML += `<option value="${t}">${t}</option>`);
-        natureTypes.forEach(n => nSelect.innerHTML += `<option value="${n}">${n}</option>`);
+        natures.forEach(n => nSelect.innerHTML += `<option value="${n}">${n}</option>`);
 
         sSelect.onchange = applyFilters;
         tSelect.onchange = applyFilters;
@@ -146,16 +181,12 @@
         const n = document.getElementById('natureFilter').value;
 
         const filtered = allData.filter(r => {
-            const matchesState = (s === '' || r.State === s);
-            const matchesTheme = (t === '' || (r.Theme || r['Thematic Area']) === t);
-            
-            // Check if the selected nature is part of the project's description
-            const projectNature = r['Nature of Project'] || '';
-            const matchesNature = (n === '' || projectNature.includes(n));
-            
-            return matchesState && matchesTheme && matchesNature;
+            const matchState = (s === '' || r.State === s);
+            const matchTheme = (t === '' || (r['Theme'] || r.Theme) === t);
+            const matchNature = (n === '' || r['Nature of Project'] === n);
+            return matchState && matchTheme && matchNature;
         });
-
+        
         plotMarkers(filtered);
     }
 </script>
