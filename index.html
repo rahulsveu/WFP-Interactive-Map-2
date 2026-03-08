@@ -8,7 +8,7 @@
     <style>
         body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; height: 100vh; background: #f8fafc; }
         #header { background: #1e293b; color: white; padding: 15px; text-align: center; font-size: 1.2rem; }
-        #controls { background: white; padding: 10px; display: flex; gap: 10px; justify-content: center; border-bottom: 1px solid #cbd5e1; }
+        #controls { background: white; padding: 10px; display: flex; gap: 10px; justify-content: center; border-bottom: 1px solid #cbd5e1; flex-wrap: wrap; }
         #container { display: flex; flex: 1; overflow: hidden; }
         #map { flex: 2; background: #e2e8f0; } 
         #info-panel { flex: 1; padding: 25px; border-left: 1px solid #cbd5e1; overflow-y: auto; display: none; background: white; }
@@ -21,10 +21,11 @@
 </head>
 <body>
 
-<div id="header">WFP Interactive Map</div>
+<div id="header">Field Project 2026 Map</div>
 <div id="controls">
     <select id="stateFilter"><option value="">All States</option></select>
     <select id="themeFilter"><option value="">All Thematic Areas</option></select>
+    <select id="natureFilter"><option value="">All Project Types</option></select>
     <button onclick="location.reload()">Reset Map</button>
 </div>
 <div id="container">
@@ -38,7 +39,7 @@
 <script>
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTBmIrU1dFkHkdCohIqhhwHxi1CASej4pDY1ciRHytriDFBgDevrEQOEb28YDd_t8Tg-j6WDSpZKZJa/pub?output=csv';
 
-    // Initialize Map with a reliable Hybrid Satellite layer (Detailed & India-Friendly)
+    // Initialize Map
     const map = L.map('map').setView([22.97, 78.65], 5);
     
     L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
@@ -51,7 +52,7 @@
     // Reliable Google Drive ID Extractor
     function getDriveThumbnail(url) {
         if (!url || typeof url !== 'string' || url.length < 20) return null;
-        const match = url.match(/[-\w]{25,}/); // Standard Drive ID regex
+        const match = url.match(/[-\w]{25,}/);
         const id = match ? match[0] : null;
         return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : null;
     }
@@ -90,14 +91,16 @@
                 if (img1) snippetsHtml += `<img class="project-img" src="${img1}"><span class="caption">${row['Caption 1'] || ''}</span>`;
                 if (img2) snippetsHtml += `<img class="project-img" src="${img2}"><span class="caption">${row['Caption 2'] || ''}</span>`;
 
+                // Updated to match the specific column names in your Mastersheet.csv
                 panel.innerHTML = `
-                    <h2>${row.Title || 'Research Project'}</h2>
-                    <p><strong>Student:</strong> ${row.Name || row.Student || 'N/A'}</p>
+                    <h2>${row['Title of the Project'] || row.Title || 'Research Project'}</h2>
+                    <p><strong>Student:</strong> ${row.Student || row.Name || 'N/A'}</p>
                     <p><strong>District:</strong> ${row.District || 'N/A'}</p>
                     <p><strong>State:</strong> ${row.State || 'N/A'}</p>
-                    <p><strong>Theme:</strong> ${row['Theme'] || row.Theme || 'N/A'}</p>
+                    <p><strong>Theme:</strong> ${row.Theme || row['Thematic Area'] || 'N/A'}</p>
+                    <p><strong>Nature of Project:</strong> ${row['Nature of Project'] || 'N/A'}</p>
                     <hr>
-                    <p style="line-height:1.6;">${row['Abstract'] || row.Abstract || ''}</p>
+                    <p style="line-height:1.6;">${row.Abstract || ''}</p>
                     ${snippetsHtml}
                 `;
             });
@@ -106,24 +109,53 @@
 
     function setupFilters(data) {
         const states = [...new Set(data.map(r => r.State))].filter(Boolean).sort();
-        const themes = [...new Set(data.map(r => r['Thematic Area'] || r.Theme))].filter(Boolean).sort();
+        const themes = [...new Set(data.map(r => r.Theme || r['Thematic Area']))].filter(Boolean).sort();
+        
+        // Logic to extract unique project types from comma-separated values
+        let natureTypesSet = new Set();
+        data.forEach(r => {
+            if (r['Nature of Project']) {
+                // Split by comma and trim whitespace
+                const types = r['Nature of Project'].split(',').map(item => item.trim());
+                types.forEach(type => natureTypesSet.add(type));
+            }
+        });
+        const natureTypes = [...natureTypesSet].filter(Boolean).sort();
+
         const sSelect = document.getElementById('stateFilter');
         const tSelect = document.getElementById('themeFilter');
+        const nSelect = document.getElementById('natureFilter');
         
-        // Reset and populate
+        // Populate dropdowns
         sSelect.innerHTML = '<option value="">All States</option>';
         tSelect.innerHTML = '<option value="">All Thematic Areas</option>';
+        nSelect.innerHTML = '<option value="">All Project Types</option>';
         
         states.forEach(s => sSelect.innerHTML += `<option value="${s}">${s}</option>`);
         themes.forEach(t => tSelect.innerHTML += `<option value="${t}">${t}</option>`);
+        natureTypes.forEach(n => nSelect.innerHTML += `<option value="${n}">${n}</option>`);
+
         sSelect.onchange = applyFilters;
         tSelect.onchange = applyFilters;
+        nSelect.onchange = applyFilters;
     }
 
     function applyFilters() {
         const s = document.getElementById('stateFilter').value;
         const t = document.getElementById('themeFilter').value;
-        const filtered = allData.filter(r => (s === '' || r.State === s) && (t === '' || (r['Thematic Area'] || r.Theme) === t));
+        const n = document.getElementById('natureFilter').value;
+
+        const filtered = allData.filter(r => {
+            const matchesState = (s === '' || r.State === s);
+            const matchesTheme = (t === '' || (r.Theme || r['Thematic Area']) === t);
+            
+            // Check if the selected nature is part of the project's description
+            const projectNature = r['Nature of Project'] || '';
+            const matchesNature = (n === '' || projectNature.includes(n));
+            
+            return matchesState && matchesTheme && matchesNature;
+        });
+
         plotMarkers(filtered);
     }
 </script>
